@@ -6,6 +6,7 @@ import { Send } from "lucide-react";
 import ChatMessage from "@/components/ChatMessage";
 import VoiceButton from "@/components/VoiceButton";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   text: string;
@@ -49,23 +50,15 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/generate-with-ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('generate-with-ai', {
+        body: {
           prompt: input,
           context: messages.slice(-5), // Send last 5 messages for context
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
+      if (error) throw error;
 
-      const data = await response.json();
-      
       const aiMessage: Message = {
         text: data.generatedText,
         isUser: false,

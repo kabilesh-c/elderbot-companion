@@ -2,12 +2,12 @@
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
-  message: string;
+  text: string;
   isUser: boolean;
   timestamp: string;
 }
 
-const ChatMessage = ({ message, isUser, timestamp }: ChatMessageProps) => {
+const ChatMessage = ({ text, isUser, timestamp }: ChatMessageProps) => {
   return (
     <div
       className={cn(
@@ -23,7 +23,7 @@ const ChatMessage = ({ message, isUser, timestamp }: ChatMessageProps) => {
             : "bg-muted text-muted-foreground"
         )}
       >
-        <p className="leading-relaxed">{message}</p>
+        <p className="leading-relaxed">{text}</p>
         <p className="mt-2 text-sm opacity-70">{timestamp}</p>
       </div>
     </div>

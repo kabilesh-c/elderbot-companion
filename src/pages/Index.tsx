@@ -17,7 +17,7 @@ interface Message {
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
-      text: "Hello! I'm your AI companion, designed to help seniors with daily tasks and provide friendly conversation. How may I assist you today?",
+      text: "Hello! I'm your AI companion, designed to help seniors with daily tasks and provide friendly conversation. You can type your message or click the microphone button to use voice input. How may I assist you today?",
       isUser: false,
       timestamp: new Date().toLocaleTimeString(),
     },
@@ -26,6 +26,7 @@ const Index = () => {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const scrollToBottom = () => {
@@ -78,9 +79,14 @@ const Index = () => {
     }
   };
 
-  const toggleVoice = () => {
-    setIsListening(!isListening);
-    // Voice recognition implementation will go here
+  const handleVoiceInput = (text: string) => {
+    setInput(text);
+    // Focus the input field after voice input
+    inputRef.current?.focus();
+    toast({
+      title: "Voice Input Received",
+      description: "You can edit the text or press Enter to send.",
+    });
   };
 
   return (
@@ -102,22 +108,26 @@ const Index = () => {
         <div className="flex items-center gap-4">
           <VoiceButton
             isListening={isListening}
-            onClick={toggleVoice}
+            onClick={() => setIsListening(!isListening)}
+            onTextReceived={handleVoiceInput}
             className="flex-shrink-0"
           />
           <div className="flex flex-1 items-center gap-2">
             <Input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Type your message here..."
+              placeholder={isListening ? "Listening..." : "Type your message or click the microphone to speak..."}
               className="text-lg"
-              disabled={isLoading}
+              disabled={isLoading || isListening}
+              aria-label="Message input"
             />
             <Button
               onClick={handleSend}
               className="h-14 w-14 rounded-full p-0"
               disabled={!input.trim() || isLoading}
+              aria-label="Send message"
             >
               <Send className={`h-6 w-6 ${isLoading ? "animate-pulse" : ""}`} />
             </Button>

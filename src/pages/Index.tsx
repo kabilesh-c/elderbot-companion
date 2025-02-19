@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
 import ChatMessage from "@/components/ChatMessage";
 import VoiceButton from "@/components/VoiceButton";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Message {
   text: string;
@@ -15,14 +16,16 @@ interface Message {
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
-      text: "Hello! I'm your AI companion. How can I assist you today?",
+      text: "Hello! I'm your AI companion, designed to help seniors with daily tasks and provide friendly conversation. How may I assist you today?",
       isUser: false,
       timestamp: new Date().toLocaleTimeString(),
     },
   ]);
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,7 +36,7 @@ const Index = () => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: Message = {
       text: input,
@@ -43,16 +46,43 @@ const Index = () => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/generate-with-ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: input,
+          context: messages.slice(-5), // Send last 5 messages for context
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get response");
+      }
+
+      const data = await response.json();
+      
       const aiMessage: Message = {
-        text: "I understand. I'm here to help you with that. What would you like to know?",
+        text: data.generatedText,
         isUser: false,
         timestamp: new Date().toLocaleTimeString(),
       };
+
       setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "I'm having trouble responding right now. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error in AI response:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleVoice = () => {
@@ -89,13 +119,14 @@ const Index = () => {
               onKeyPress={(e) => e.key === "Enter" && handleSend()}
               placeholder="Type your message here..."
               className="text-lg"
+              disabled={isLoading}
             />
             <Button
               onClick={handleSend}
               className="h-14 w-14 rounded-full p-0"
-              disabled={!input.trim()}
+              disabled={!input.trim() || isLoading}
             >
-              <Send className="h-6 w-6" />
+              <Send className={`h-6 w-6 ${isLoading ? "animate-pulse" : ""}`} />
             </Button>
           </div>
         </div>

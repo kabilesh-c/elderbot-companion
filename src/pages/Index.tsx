@@ -2,11 +2,12 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { Send, LogOut } from "lucide-react";
 import ChatMessage from "@/components/ChatMessage";
 import VoiceButton from "@/components/VoiceButton";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Message {
   text: string;
@@ -28,6 +29,7 @@ const Index = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,8 +39,37 @@ const Index = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    // Load chat history
+    const loadChatHistory = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('chat_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: true });
+      
+      if (error) {
+        console.error('Error loading chat history:', error);
+        return;
+      }
+
+      if (data) {
+        const historicalMessages = data.map(msg => ({
+          text: msg.message,
+          isUser: msg.is_user,
+          timestamp: new Date(msg.timestamp).toLocaleTimeString(),
+        }));
+        setMessages(prev => [...historicalMessages]);
+      }
+    };
+
+    loadChatHistory();
+  }, [user]);
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !user) return;
 
     const userMessage: Message = {
       text: input,
@@ -51,10 +82,17 @@ const Index = () => {
     setIsLoading(true);
 
     try {
+      // Store user message
+      await supabase.from('chat_history').insert({
+        user_id: user.id,
+        message: input,
+        is_user: true,
+      });
+
       const { data, error } = await supabase.functions.invoke('generate-with-ai', {
         body: {
           prompt: input,
-          context: messages.slice(-5), // Send last 5 messages for context
+          context: messages.slice(-5),
         },
       });
 
@@ -65,6 +103,13 @@ const Index = () => {
         isUser: false,
         timestamp: new Date().toLocaleTimeString(),
       };
+
+      // Store AI response
+      await supabase.from('chat_history').insert({
+        user_id: user.id,
+        message: data.generatedText,
+        is_user: false,
+      });
 
       setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
@@ -81,7 +126,6 @@ const Index = () => {
 
   const handleVoiceInput = (text: string) => {
     setInput(text);
-    // Focus the input field after voice input
     inputRef.current?.focus();
     toast({
       title: "Voice Input Received",
@@ -89,12 +133,31 @@ const Index = () => {
     });
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background p-4 md:p-8">
       <div className="mx-auto w-full max-w-4xl rounded-2xl bg-white p-4 shadow-lg md:p-8">
-        <h1 className="mb-8 text-center text-3xl font-bold text-primary">
-          Your AI Companion
-        </h1>
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-primary">
+            Your AI Companion
+          </h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            className="h-10 w-10"
+            aria-label="Sign out"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
 
         <div className="mb-4 h-[60vh] overflow-y-auto rounded-lg bg-muted/30 p-4">
           <div className="space-y-4">

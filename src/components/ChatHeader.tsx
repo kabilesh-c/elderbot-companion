@@ -1,6 +1,12 @@
 
 import { Button } from "@/components/ui/button";
 import { LogOut, Clock } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ChatHeaderProps {
   onReminderClick: () => void;
@@ -15,15 +21,24 @@ const ChatHeader = ({ onReminderClick, onSignOut, isAuthenticated }: ChatHeaderP
         Your AI Companion
       </h1>
       <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onReminderClick}
-          className="h-10 w-10"
-          aria-label="Set reminder"
-        >
-          <Clock className="h-5 w-5" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="default"
+                onClick={onReminderClick}
+                className="flex items-center gap-2 px-4"
+                aria-label="Set reminder"
+              >
+                <Clock className="h-5 w-5" />
+                Set Reminder
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Click here to set up your reminders</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         {isAuthenticated && onSignOut && (
           <Button
             variant="ghost"

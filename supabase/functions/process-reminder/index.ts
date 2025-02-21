@@ -23,7 +23,17 @@ Deno.serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+        },
+        global: {
+          headers: {
+            Authorization: req.headers.get('Authorization')!,
+          },
+        },
+      }
     );
 
     const { phone_number, message, reminder_type, reminder_time, reminder_day, user_id } = await req.json() as ReminderRequest;
@@ -43,6 +53,16 @@ Deno.serve(async (req) => {
       nextReminder.setDate(nextReminder.getDate() + 1);
     }
 
+    console.log('Creating reminder with:', {
+      phone_number,
+      message,
+      reminder_type,
+      reminder_time,
+      reminder_day,
+      next_reminder: nextReminder.toISOString(),
+      user_id
+    });
+
     const { data, error } = await supabaseClient
       .from('reminders')
       .insert({
@@ -52,17 +72,21 @@ Deno.serve(async (req) => {
         reminder_time,
         reminder_day: reminder_type === 'monthly' ? reminder_day : null,
         next_reminder: nextReminder.toISOString(),
-        user_id: user_id || null
+        user_id
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    console.error('Error in process-reminder:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

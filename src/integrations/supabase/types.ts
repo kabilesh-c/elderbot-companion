@@ -9,7 +9,100 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      chat_history: {
+        Row: {
+          feedback_rating: number | null
+          id: string
+          is_user: boolean | null
+          message: string
+          timestamp: string | null
+          user_id: string
+        }
+        Insert: {
+          feedback_rating?: number | null
+          id?: string
+          is_user?: boolean | null
+          message: string
+          timestamp?: string | null
+          user_id: string
+        }
+        Update: {
+          feedback_rating?: number | null
+          id?: string
+          is_user?: boolean | null
+          message?: string
+          timestamp?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string | null
+          id: string
+          medical_details: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          medical_details?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          medical_details?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          user_id: string
+          value: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          user_id: string
+          value?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          user_id?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -15,6 +15,12 @@ interface Message {
   timestamp: string;
 }
 
+interface ChatHistoryRecord {
+  message: string;
+  is_user: boolean;
+  timestamp: string;
+}
+
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -46,7 +52,7 @@ const Index = () => {
       
       const { data, error } = await supabase
         .from('chat_history')
-        .select('*')
+        .select('message, is_user, timestamp')
         .eq('user_id', user.id)
         .order('timestamp', { ascending: true });
       
@@ -56,7 +62,7 @@ const Index = () => {
       }
 
       if (data) {
-        const historicalMessages = data.map(msg => ({
+        const historicalMessages = (data as ChatHistoryRecord[]).map(msg => ({
           text: msg.message,
           isUser: msg.is_user,
           timestamp: new Date(msg.timestamp).toLocaleTimeString(),
@@ -83,11 +89,15 @@ const Index = () => {
 
     try {
       // Store user message
-      await supabase.from('chat_history').insert({
-        user_id: user.id,
-        message: input,
-        is_user: true,
-      });
+      const { error: insertError } = await supabase
+        .from('chat_history')
+        .insert({
+          user_id: user.id,
+          message: input,
+          is_user: true,
+        });
+
+      if (insertError) throw insertError;
 
       const { data, error } = await supabase.functions.invoke('generate-with-ai', {
         body: {
@@ -105,14 +115,18 @@ const Index = () => {
       };
 
       // Store AI response
-      await supabase.from('chat_history').insert({
-        user_id: user.id,
-        message: data.generatedText,
-        is_user: false,
-      });
+      const { error: aiInsertError } = await supabase
+        .from('chat_history')
+        .insert({
+          user_id: user.id,
+          message: data.generatedText,
+          is_user: false,
+        });
+
+      if (aiInsertError) throw aiInsertError;
 
       setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
         description: "I'm having trouble responding right now. Please try again.",

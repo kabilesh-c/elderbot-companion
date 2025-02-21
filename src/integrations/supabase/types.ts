@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       chat_history: {
         Row: {
+          conversation_id: string | null
           feedback_rating: number | null
           id: string
           is_user: boolean | null
@@ -19,6 +20,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          conversation_id?: string | null
           feedback_rating?: number | null
           id?: string
           is_user?: boolean | null
@@ -27,6 +29,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          conversation_id?: string | null
           feedback_rating?: number | null
           id?: string
           is_user?: boolean | null
@@ -36,7 +39,46 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "chat_history_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "chat_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -67,6 +109,53 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      reminders: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          message: string
+          next_reminder: string
+          phone_number: string
+          reminder_day: number | null
+          reminder_time: string
+          reminder_type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message: string
+          next_reminder: string
+          phone_number: string
+          reminder_day?: number | null
+          reminder_time: string
+          reminder_type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message?: string
+          next_reminder?: string
+          phone_number?: string
+          reminder_day?: number | null
+          reminder_time?: string
+          reminder_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_preferences: {
         Row: {

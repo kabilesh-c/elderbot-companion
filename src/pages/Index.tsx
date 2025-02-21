@@ -2,12 +2,14 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, LogOut } from "lucide-react";
+import { Send, LogOut, Clock } from "lucide-react";
 import ChatMessage from "@/components/ChatMessage";
 import VoiceButton from "@/components/VoiceButton";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import ConversationList from "@/components/ConversationList";
+import ReminderDialog from "@/components/ReminderDialog";
 
 interface Message {
   text: string;
@@ -32,6 +34,8 @@ const Index = () => {
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string>();
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -45,21 +49,23 @@ const Index = () => {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    // Load chat history
-    const loadChatHistory = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
+  const loadChatHistory = async (conversationId: string) => {
+    try {
+      let query = supabase
         .from('chat_history')
         .select('message, is_user, timestamp')
-        .eq('user_id', user.id)
+        .eq('conversation_id', conversationId)
         .order('timestamp', { ascending: true });
-      
-      if (error) {
-        console.error('Error loading chat history:', error);
-        return;
+
+      if (user) {
+        query = query.eq('user_id', user.id);
+      } else {
+        query = query.is('user_id', null);
       }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
 
       if (data) {
         const historicalMessages = (data as ChatHistoryRecord[]).map(msg => ({
@@ -67,15 +73,39 @@ const Index = () => {
           isUser: msg.is_user,
           timestamp: new Date(msg.timestamp).toLocaleTimeString(),
         }));
-        setMessages(prev => [...historicalMessages]);
+        setMessages(historicalMessages);
       }
-    };
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  };
 
-    loadChatHistory();
-  }, [user]);
+  const createNewConversation = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .insert({
+          title: 'New Conversation',
+          user_id: user?.id || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCurrentConversationId(data.id);
+      setMessages([messages[0]]); // Reset to welcome message
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create new conversation",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !user) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: Message = {
       text: input,
@@ -88,13 +118,19 @@ const Index = () => {
     setIsLoading(true);
 
     try {
+      // Check for reminder-related keywords
+      if (input.toLowerCase().includes('remind') || input.toLowerCase().includes('reminder')) {
+        setIsReminderDialogOpen(true);
+      }
+
       // Store user message
       const { error: insertError } = await supabase
         .from('chat_history')
         .insert({
-          user_id: user.id,
+          user_id: user?.id || null,
           message: input,
           is_user: true,
+          conversation_id: currentConversationId
         });
 
       if (insertError) throw insertError;
@@ -118,9 +154,10 @@ const Index = () => {
       const { error: aiInsertError } = await supabase
         .from('chat_history')
         .insert({
-          user_id: user.id,
+          user_id: user?.id || null,
           message: data.generatedText,
           is_user: false,
+          conversation_id: currentConversationId
         });
 
       if (aiInsertError) throw aiInsertError;
@@ -156,24 +193,49 @@ const Index = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background p-4 md:p-8">
-      <div className="mx-auto w-full max-w-4xl rounded-2xl bg-white p-4 shadow-lg md:p-8">
-        <div className="mb-8 flex items-center justify-between">
+    <div className="flex min-h-screen bg-background">
+      <div className="w-64 p-4 border-r border-border">
+        <ConversationList
+          currentId={currentConversationId}
+          onSelect={(id) => {
+            setCurrentConversationId(id);
+            loadChatHistory(id);
+          }}
+          onNew={createNewConversation}
+          userId={user?.id}
+        />
+      </div>
+      
+      <div className="flex-1 flex flex-col p-4">
+        <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-primary">
             Your AI Companion
           </h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSignOut}
-            className="h-10 w-10"
-            aria-label="Sign out"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsReminderDialogOpen(true)}
+              className="h-10 w-10"
+              aria-label="Set reminder"
+            >
+              <Clock className="h-5 w-5" />
+            </Button>
+            {user && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                className="h-10 w-10"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="mb-4 h-[60vh] overflow-y-auto rounded-lg bg-muted/30 p-4">
+        <div className="flex-1 mb-4 overflow-y-auto rounded-lg bg-muted/30 p-4">
           <div className="space-y-4">
             {messages.map((message, index) => (
               <ChatMessage key={index} {...message} />
@@ -211,6 +273,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      <ReminderDialog
+        open={isReminderDialogOpen}
+        onClose={() => setIsReminderDialogOpen(false)}
+        userId={user?.id}
+      />
     </div>
   );
 };

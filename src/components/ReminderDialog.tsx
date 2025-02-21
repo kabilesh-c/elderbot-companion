@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -47,7 +48,7 @@ const ReminderDialog = ({ open, onClose, userId }: ReminderDialogProps) => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('process-reminder', {
+      const { data, error } = await supabase.functions.invoke('process-reminder', {
         body: {
           phone_number: phoneNumber,
           message,
@@ -66,9 +67,10 @@ const ReminderDialog = ({ open, onClose, userId }: ReminderDialogProps) => {
       });
       onClose();
     } catch (error) {
+      console.error('Error setting reminder:', error);
       toast({
         title: "Error",
-        description: "Failed to set reminder",
+        description: "Failed to set reminder. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -81,6 +83,9 @@ const ReminderDialog = ({ open, onClose, userId }: ReminderDialogProps) => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Set a Reminder</DialogTitle>
+          <DialogDescription>
+            Fill in the details below to set up your reminder.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
